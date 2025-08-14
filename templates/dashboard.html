@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Supply Chain Disruption Predictor{% endblock %}
+
+{% block content %}
+<div id="alert-container"></div>
+
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h2 mb-1">
+                    <i class="fas fa-tachometer-alt text-primary me-2"></i>
+                    Supply Chain Dashboard
+                </h1>
+                <p class="text-muted mb-0">Real-time monitoring of global supply chain disruptions</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="loadDashboardData()">
+                    <i class="fas fa-sync-alt me-1"></i>
+                    <span class="loading-spinner spinner-border spinner-border-sm me-1" role="status"></span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Risk Overview Stats -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card risk-high">
+            <div class="card-body">
+                <div class="stat-number" id="high-risk-count">-</div>
+                <div class="stat-label">High Risk Alerts</div>
+                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card risk-medium">
+            <div class="card-body">
+                <div class="stat-number" id="medium-risk-count">-</div>
+                <div class="stat-label">Medium Risk Alerts</div>
+                <i class="fas fa-exclamation-circle fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card risk-low">
+            <div class="card-body">
+                <div class="stat-number" id="low-risk-count">-</div>
+                <div class="stat-label">Low Risk Alerts</div>
+                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card" style="background: linear-gradient(135deg, var(--secondary-color), #2980b9); color: white;">
+            <div class="card-body">
+                <div class="stat-number" id="total-events">-</div>
+                <div class="stat-label">Total Events (48h)</div>
+                <i class="fas fa-globe fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Risk Assessment Panel -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Current Risk Assessment
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="risk-assessment-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading risk assessments...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Panel -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="showBusinessProfileModal()">
+                        <i class="fas fa-building me-2"></i>
+                        Setup Business Profile
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="analyzeImpact()">
+                        <i class="fas fa-search me-2"></i>
+                        Analyze Impact
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportReport()">
+                        <i class="fas fa-download me-2"></i>
+                        Export Report
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="configureAlerts()">
+                        <i class="fas fa-bell me-2"></i>
+                        Configure Alerts
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Distribution Chart -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Risk Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="riskDistributionChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Events -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Recent Supply Chain Events
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-events-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading recent events...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Business Profile Modal -->
+<div class="modal fade" id="businessProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-building me-2"></i>
+                    Business Profile Setup
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="businessProfileForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="businessName" class="form-label">Business Name</label>
+                            <input type="text" class="form-control" id="businessName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="industry" class="form-label">Industry</label>
+                            <select class="form-select" id="industry" required>
+                                <option value="">Select Industry</option>
+                                <option value="automotive">Automotive</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="pharmaceuticals">Pharmaceuticals</option>
+                                <option value="food_beverage">Food & Beverage</option>
+                                <option value="textiles">Textiles</option>
+                                <option value="construction">Construction</option>
+                                <option value="energy">Energy</option>
+                                <option value="retail">Retail</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="keySuppliers" class="form-label">Key Suppliers (comma-separated)</label>
+                        <textarea class="form-control" id="keySuppliers" rows="3" 
+                                placeholder="e.g., Supplier A, Supplier B, Supplier C"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="supplyRegions" class="form-label">Supply Regions (comma-separated)</label>
+                        <textarea class="form-control" id="supplyRegions" rows="2" 
+                                placeholder="e.g., China, Germany, United States"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="criticalMaterials" class="form-label">Critical Materials (comma-separated)</label>
+                        <textarea class="form-control" id="criticalMaterials" rows="2" 
+                                placeholder="e.g., steel, semiconductors, plastics"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveBusinessProfile()">
+                    <i class="fas fa-save me-1"></i>Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let riskChart;
+    
+    // Update risk overview with data
+    function updateRiskOverview(data) {
+        let highRisk = 0, mediumRisk = 0, lowRisk = 0;
+        
+        data.forEach(item => {
+            if (item.risk_level >= 0.7) highRisk++;
+            else if (item.risk_level >= 0.4) mediumRisk++;
+            else lowRisk++;
+        });
+        
+        document.getElementById('high-risk-count').textContent = highRisk;
+        document.getElementById('medium-risk-count').textContent = mediumRisk;
+        document.getElementById('low-risk-count').textContent = lowRisk;
+        
+        // Update risk assessment content
+        updateRiskAssessmentTable(data);
+        
+        // Update risk distribution chart
+        updateRiskDistributionChart([highRisk, mediumRisk, lowRisk]);
+    }
+    
+    // Update risk assessment table
+    function updateRiskAssessmentTable(data) {
+        const container = document.getElementById('risk-assessment-content');
+        
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5>No High-Risk Alerts</h5>
+                    <p class="text-muted">All supply chain indicators are currently stable.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let tableHtml = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Region</th>
+                            <th>Sector</th>
+                            <th>Risk Level</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        data.slice(0, 10).forEach(item => {
+            const risk = formatRiskLevel(item.risk_level);
+            const riskPercent = Math.round(item.risk_level * 100);
+            
+            tableHtml += `
+                <tr>
+                    <td>
+                        <i class="fas fa-map-marker-alt me-1 text-muted"></i>
+                        ${item.region}
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">${item.sector}</span>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="${risk.icon} me-2 text-${risk.class.includes('high') ? 'danger' : risk.class.includes('medium') ? 'warning' : 'success'}"></i>
+                            <div class="flex-grow-1">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-${risk.class.includes('high') ? 'danger' : risk.class.includes('medium') ? 'warning' : 'success'}" 
+                                         style="width: ${riskPercent}%"></div>
+                                </div>
+                                <small class="text-muted">${riskPercent}%</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <small class="text-muted">${formatTimestamp(item.timestamp)}</small>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewRiskDetails('${item.region}', '${item.sector}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = tableHtml;
+    }
+    
+    // Update recent events
+    function updateRecentEvents(data) {
+        const container = document.getElementById('recent-events-content');
+        document.getElementById('total-events').textContent = data.length;
+        
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                    <h5>No Recent Events</h5>
+                    <p class="text-muted">No supply chain events detected in the last 48 hours.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let eventsHtml = '<div class="row">';
+        
+        data.slice(0, 6).forEach(event => {
+            const severityClass = event.severity >= 0.7 ? 'danger' : event.severity >= 0.4 ? 'warning' : 'info';
+            const typeIcon = {
+                'news': 'fas fa-newspaper',
+                'weather': 'fas fa-cloud-rain',
+                'economic': 'fas fa-chart-line'
+            }[event.type] || 'fas fa-info-circle';
+            
+            eventsHtml += `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 border-${severityClass}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-${severityClass}">${event.type.toUpperCase()}</span>
+                                <i class="${typeIcon} text-${severityClass}"></i>
+                            </div>
+                            <h6 class="card-title">${event.title}</h6>
+                            <p class="card-text text-muted small">${event.description.substring(0, 100)}...</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    ${formatTimestamp(event.timestamp)}
+                                </small>
+                                <span class="badge bg-light text-dark">${event.location || 'Global'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        eventsHtml += '</div>';
+        
+        if (data.length > 6) {
+            eventsHtml += `
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary" onclick="loadMoreEvents()">
+                        <i class="fas fa-plus me-1"></i>
+                        Load More Events (${data.length - 6} remaining)
+                    </button>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = eventsHtml;
+    }
+    
+    // Update risk distribution chart
+    function updateRiskDistributionChart(data) {
+        const ctx = document.getElementById('riskDistributionChart').getContext('2d');
+        
+        if (riskChart) {
+            riskChart.destroy();
+        }
+        
+        riskChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        'rgba(231, 76, 60, 0.8)',
+                        'rgba(243, 156, 18, 0.8)',
+                        'rgba(39, 174, 96, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(231, 76, 60, 1)',
+                        'rgba(243, 156, 18, 1)',
+                        'rgba(39, 174, 96, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Show business profile modal
+    function showBusinessProfileModal() {
+        const modal = new bootstrap.Modal(document.getElementById('businessProfileModal'));
+        modal.show();
+    }
+    
+    // Save business profile
+    async function saveBusinessProfile() {
+        const form = document.getElementById('businessProfileForm');
+        const formData = new FormData(form);
+        
+        const profileData = {
+            business_name: document.getElementById('businessName').value,
+            industry: document.getElementById('industry').value,
+            key_suppliers: JSON.stringify(document.getElementById('keySuppliers').value.split(',').map(s => s.trim()).filter(s => s)),
+            supply_regions: JSON.stringify(document.getElementById('supplyRegions').value.split(',').map(s => s.trim()).filter(s => s)),
+            critical_materials: JSON.stringify(document.getElementById('criticalMaterials').value.split(',').map(s => s.trim()).filter(s => s))
+        };
+        
+        try {
+            const response = await fetch('/api/business-profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(profileData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                showAlert('Business profile saved successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('businessProfileModal')).hide();
+                form.reset();
+            } else {
+                showAlert('Error saving profile: ' + result.message, 'danger');
+            }
+        } catch (error) {
+            showAlert('Error saving profile. Please try again.', 'danger');
+        }
+    }
+    
+    // View risk details
+    function viewRiskDetails(region, sector) {
+        showAlert(`Detailed risk analysis for ${sector} sector in ${region} - Feature coming soon!`, 'info');
+    }
+    
+    // Quick action functions
+    function analyzeImpact() {
+        showAlert('Impact analysis feature - Coming soon!', 'info');
+    }
+    
+    function exportReport() {
+        showAlert('Report export feature - Coming soon!', 'info');
+    }
+    
+    function configureAlerts() {
+        showAlert('Alert configuration feature - Coming soon!', 'info');
+    }
+    
+    function loadMoreEvents() {
+        showAlert('Loading more events - Feature coming soon!', 'info');
+    }
+</script>
+{% endblock %}
