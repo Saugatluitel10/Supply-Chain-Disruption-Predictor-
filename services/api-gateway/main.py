@@ -45,7 +45,8 @@ SERVICES = {
     "data_collector": "http://data-collector:8001",
     "ml_inference": "http://ml-inference:8002",
     "risk_assessment": "http://risk-assessment:8003",
-    "notification": "http://notification-service:8004"
+    "notification": "http://notification-service:8004",
+    "data_sources": "http://data-sources:8005"
 }
 
 @app.get("/")
@@ -232,6 +233,73 @@ async def trigger_data_collection(background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Error triggering data collection: {e}")
         raise HTTPException(status_code=500, detail="Failed to trigger data collection")
+
+# External data sources endpoints
+@app.post("/api/external-data/collect/all")
+async def collect_all_external_data():
+    """Trigger collection of all external data sources"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{SERVICES['data_sources']}/collect/all")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error collecting external data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to collect external data")
+
+@app.post("/api/external-data/collect/news")
+async def collect_news_data():
+    """Collect supply chain news data"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{SERVICES['data_sources']}/collect/news")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error collecting news data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to collect news data")
+
+@app.post("/api/external-data/collect/weather")
+async def collect_weather_data():
+    """Collect weather data for critical locations"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{SERVICES['data_sources']}/collect/weather")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error collecting weather data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to collect weather data")
+
+@app.post("/api/external-data/collect/economic")
+async def collect_economic_data():
+    """Collect economic indicators data"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{SERVICES['data_sources']}/collect/economic")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error collecting economic data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to collect economic data")
+
+@app.post("/api/external-data/collect/shipping")
+async def collect_shipping_data():
+    """Collect shipping and logistics data"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{SERVICES['data_sources']}/collect/shipping")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error collecting shipping data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to collect shipping data")
+
+@app.get("/api/external-data/cached")
+async def get_cached_external_data():
+    """Get cached external data"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{SERVICES['data_sources']}/data/cached")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error getting cached external data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get cached external data")
 
 @app.post("/api/ml-inference/predict")
 async def get_ml_prediction(prediction_data: dict):
