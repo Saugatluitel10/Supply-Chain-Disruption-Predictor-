@@ -19,6 +19,7 @@ import {
   Refresh,
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import MapChart from './MapChart';
 import { apiService, DashboardOverview, SupplyChainEvent, RiskAssessment } from '../services/api';
 import { format } from 'date-fns';
 
@@ -124,6 +125,38 @@ const Dashboard: React.FC = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* Risk Heat Map */}
+      <Grid container spacing={3} mb={4}>
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Global Disruption Risk Heat Map
+              </Typography>
+              <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                <MapChart
+                  data={[
+                    { region: 'China', risk: 0.85 },
+                    { region: 'United States', risk: 0.55 },
+                    { region: 'India', risk: 0.45 },
+                    { region: 'Germany', risk: 0.35 },
+                    { region: 'Japan', risk: 0.4 },
+                    { region: 'South Korea', risk: 0.5 },
+                    { region: 'Netherlands', risk: 0.2 },
+                    { region: 'Mexico', risk: 0.6 },
+                    { region: 'Vietnam', risk: 0.65 },
+                    { region: 'Thailand', risk: 0.5 },
+                    { region: 'Malaysia', risk: 0.4 },
+                    { region: 'Singapore', risk: 0.3 },
+                    { region: 'Taiwan', risk: 0.7 },
+                  ]}
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Overview Cards */}
       <Grid container spacing={3} mb={4}>
