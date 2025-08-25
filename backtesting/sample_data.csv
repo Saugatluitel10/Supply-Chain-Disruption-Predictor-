@@ -1,0 +1,21 @@
+y_true,y_pred,region,industry
+0,0.05,North America,Manufacturing
+1,0.82,North America,Manufacturing
+0,0.12,North America,Retail
+1,0.71,North America,Retail
+0,0.33,Europe,Manufacturing
+1,0.66,Europe,Manufacturing
+0,0.18,Europe,Retail
+1,0.79,Europe,Retail
+0,0.22,Asia,Manufacturing
+1,0.68,Asia,Manufacturing
+0,0.09,Asia,Retail
+1,0.93,Asia,Retail
+0,0.27,South America,Manufacturing
+1,0.74,South America,Manufacturing
+0,0.14,South America,Retail
+1,0.88,South America,Retail
+0,0.41,North America,Manufacturing
+1,0.77,Europe,Retail
+0,0.07,Asia,Manufacturing
+1,0.81,Europe,Manufacturing

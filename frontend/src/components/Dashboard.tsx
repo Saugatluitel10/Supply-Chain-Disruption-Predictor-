@@ -10,6 +10,9 @@ import {
   Alert,
   Button,
   Chip,
+  TextField,
+  MenuItem,
+  Stack,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -17,13 +20,20 @@ import {
   Business,
   Notifications,
   Refresh,
+  Download,
+  FilterAlt,
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import MapChart from './MapChart';
 import { apiService, DashboardOverview, SupplyChainEvent, RiskAssessment } from '../services/api';
 import { format } from 'date-fns';
+import TimelineChart from './TimelineChart';
+import { exportElementToPNG, exportToCSV } from '../utils/export';
+import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
+  const { t } = useTranslation();
   const {
     data: overview,
     isLoading: overviewLoading,
@@ -42,6 +52,15 @@ const Dashboard: React.FC = () => {
     isLoading: risksLoading,
     error: risksError,
   } = useQuery<{ data: { assessments: RiskAssessment[] } }>('recent-risks', () => apiService.getRecentRiskAssessments(10));
+
+  const { data: alertsData } = useQuery<{ data: { alerts: any[] } }>(
+    'active-alerts-mini',
+    apiService.getActiveAlerts,
+    { refetchInterval: 15000 }
+  );
+
+  const [selectedRegion, setSelectedRegion] = React.useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = React.useState<string | null>(null);
 
   const handleRefresh = () => {
     refetchOverview();
@@ -72,6 +91,13 @@ const Dashboard: React.FC = () => {
     if (riskLevel >= 0.4) return '#2196f3';
     return '#4caf50';
   };
+
+  const industryOptions = React.useMemo(() => {
+    const sectors = new Set<string>();
+    riskAssessments?.data.assessments.forEach((r) => sectors.add(r.sector));
+    recentEvents?.data.events.forEach((e) => e.impact_sectors?.forEach((s) => sectors.add(s)));
+    return Array.from(sectors).sort();
+  }, [riskAssessments, recentEvents]);
 
   // Prepare chart data
   const eventChartData = recentEvents?.data.events.slice(0, 7).map((event, index) => ({
@@ -106,7 +132,7 @@ const Dashboard: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
-          Supply Chain Dashboard
+          {t('dashboard_title')}
         </Typography>
         <Box>
           <Button
@@ -115,16 +141,50 @@ const Dashboard: React.FC = () => {
             onClick={handleRefresh}
             sx={{ mr: 2 }}
           >
-            Refresh
+            {t('refresh')}
           </Button>
           <Button
             variant="contained"
             onClick={handleTriggerDataCollection}
           >
-            Collect Data
+            {t('collect_data')}
           </Button>
         </Box>
       </Box>
+
+      {/* Filters */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Box display="flex" alignItems="center" gap={1} flex={1}>
+              <FilterAlt color="action" />
+              <Typography variant="subtitle1">{t('filters')}</Typography>
+            </Box>
+            <TextField
+              label={t('region')}
+              value={selectedRegion || ''}
+              onChange={(e) => setSelectedRegion(e.target.value || null)}
+              placeholder={t('region')}
+              size="small"
+              sx={{ minWidth: 200 }}
+            />
+            <TextField
+              select
+              label={t('industry')}
+              value={selectedIndustry || ''}
+              onChange={(e) => setSelectedIndustry(e.target.value || null)}
+              size="small"
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="">—</MenuItem>
+              {industryOptions.map((opt) => (
+                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+              ))}
+            </TextField>
+            <Button onClick={() => { setSelectedRegion(null); setSelectedIndustry(null); }}>{t('clear')}</Button>
+          </Stack>
+        </CardContent>
+      </Card>
 
       {/* Risk Heat Map */}
       <Grid container spacing={3} mb={4}>
@@ -132,9 +192,9 @@ const Dashboard: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Global Disruption Risk Heat Map
+                {t('heatmap_title')}
               </Typography>
-              <Box sx={{ width: '100%', overflowX: 'auto' }}>
+              <Box id="heatmap-card" sx={{ width: '100%', overflowX: 'auto' }}>
                 <MapChart
                   data={[
                     { region: 'China', risk: 0.85 },
@@ -151,7 +211,14 @@ const Dashboard: React.FC = () => {
                     { region: 'Singapore', risk: 0.3 },
                     { region: 'Taiwan', risk: 0.7 },
                   ]}
+                  onRegionSelect={(name) => setSelectedRegion(name)}
+                  selectedRegion={selectedRegion}
                 />
+              </Box>
+              <Box display="flex" justifyContent="flex-end" mt={1}>
+                <Button size="small" startIcon={<Download />} onClick={() => exportElementToPNG('heatmap-card', 'risk-heatmap.png')}>
+                  {t('export_png')}
+                </Button>
               </Box>
             </CardContent>
           </Card>
@@ -167,7 +234,7 @@ const Dashboard: React.FC = () => {
                 <TrendingUp color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Recent Events
+                    {t('recent_events')}
                   </Typography>
                   <Typography variant="h4">
                     {overview?.data.recent_events || 0}
@@ -185,7 +252,7 @@ const Dashboard: React.FC = () => {
                 <Warning color="warning" sx={{ mr: 2 }} />
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    High Risk Assessments
+                    {t('high_risk_assessments')}
                   </Typography>
                   <Typography variant="h4">
                     {overview?.data.high_risk_assessments || 0}
@@ -203,7 +270,7 @@ const Dashboard: React.FC = () => {
                 <Notifications color="error" sx={{ mr: 2 }} />
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Active Alerts
+                    {t('active_alerts')}
                   </Typography>
                   <Typography variant="h4">
                     {overview?.data.active_alerts || 0}
@@ -221,7 +288,7 @@ const Dashboard: React.FC = () => {
                 <Business color="info" sx={{ mr: 2 }} />
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Business Profiles
+                    {t('business_profiles')}
                   </Typography>
                   <Typography variant="h4">
                     {overview?.data.business_profiles || 0}
@@ -234,12 +301,38 @@ const Dashboard: React.FC = () => {
       </Grid>
 
       <Grid container spacing={3}>
+        {/* Timeline Visualization */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="h6">{t('event_severity_trends')}</Typography>
+                <Button size="small" startIcon={<Download />} onClick={() => exportElementToPNG('timeline-card', 'timeline.png')}>
+                  {t('export_png')}
+                </Button>
+              </Box>
+              {eventsLoading || risksLoading ? (
+                <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
+              ) : (
+                <Box id="timeline-card">
+                  <TimelineChart
+                    events={recentEvents?.data.events || []}
+                    risks={riskAssessments?.data.assessments || []}
+                    regionFilter={selectedRegion}
+                    industryFilter={selectedIndustry}
+                  />
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
         {/* Recent Events Chart */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Event Severity Trends
+                {t('event_severity_trends')}
               </Typography>
               {eventsLoading ? (
                 <Box display="flex" justifyContent="center" p={4}>
@@ -248,15 +341,22 @@ const Dashboard: React.FC = () => {
               ) : eventsError ? (
                 <Alert severity="error">Failed to load events data</Alert>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={eventChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="severity" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <Box id="events-chart">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={eventChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="severity" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <Box display="flex" justifyContent="flex-end" mt={1}>
+                    <Button size="small" startIcon={<Download />} onClick={() => exportElementToPNG('events-chart', 'events-chart.png')}>
+                      {t('export_png')}
+                    </Button>
+                  </Box>
+                </Box>
               )}
             </CardContent>
           </Card>
@@ -267,7 +367,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Risk Level by Region
+                {t('risk_level_by_region')}
               </Typography>
               {risksLoading ? (
                 <Box display="flex" justifyContent="center" p={4}>
@@ -276,15 +376,22 @@ const Dashboard: React.FC = () => {
               ) : risksError ? (
                 <Alert severity="error">Failed to load risk data</Alert>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={riskChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="risk" stroke="#82ca9d" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <Box id="risk-chart">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={riskChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="risk" stroke="#82ca9d" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <Box display="flex" justifyContent="flex-end" mt={1}>
+                    <Button size="small" startIcon={<Download />} onClick={() => exportElementToPNG('risk-chart', 'risk-chart.png')}>
+                      {t('export_png')}
+                    </Button>
+                  </Box>
+                </Box>
               )}
             </CardContent>
           </Card>
@@ -295,7 +402,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Recent Supply Chain Events
+                {t('recent_supply_chain_events')}
               </Typography>
               {eventsLoading ? (
                 <CircularProgress />
@@ -326,6 +433,19 @@ const Dashboard: React.FC = () => {
                       </Box>
                     </Box>
                   ))}
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button size="small" startIcon={<Download />} onClick={() => {
+                      const rows = (recentEvents?.data.events || []).map(e => ({
+                        id: e.id,
+                        title: e.title,
+                        type: e.type,
+                        location: e.location,
+                        severity: (e.severity * 100).toFixed(0),
+                        timestamp: e.timestamp,
+                      }));
+                      exportToCSV('events.csv', rows);
+                    }}>{t('export_csv')}</Button>
+                  </Box>
                 </Box>
               )}
             </CardContent>
@@ -337,7 +457,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Latest Risk Assessments
+                {t('latest_risk_assessments')}
               </Typography>
               {risksLoading ? (
                 <CircularProgress />
@@ -369,8 +489,51 @@ const Dashboard: React.FC = () => {
                       </Typography>
                     </Box>
                   ))}
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button size="small" startIcon={<Download />} onClick={() => {
+                      const rows = (riskAssessments?.data.assessments || []).map(r => ({
+                        id: r.id,
+                        region: r.region,
+                        sector: r.sector,
+                        risk_level: (r.risk_level * 100).toFixed(1),
+                        confidence: (r.confidence_score * 100).toFixed(0),
+                        timestamp: r.timestamp,
+                      }));
+                      exportToCSV('risk-assessments.csv', rows);
+                    }}>{t('export_csv')}</Button>
+                  </Box>
                 </Box>
               )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Alert Center (Prioritized) */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="h6">{t('active_alerts')}</Typography>
+                <Button component={RouterLink} to="/alerts">View All</Button>
+              </Box>
+              <Box>
+                {(alertsData?.data.alerts || [])
+                  .slice()
+                  .sort((a, b) => {
+                    const order = { critical: 3, high: 2, medium: 1, low: 0 } as any;
+                    return (order[b.severity] || 0) - (order[a.severity] || 0);
+                  })
+                  .slice(0, 5)
+                  .map((alert) => (
+                    <Box key={alert.id} mb={2} p={2} border={1} borderColor="grey.300" borderRadius={1}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography variant="subtitle2" fontWeight="bold">{alert.title}</Typography>
+                        <Chip label={alert.severity} color={alert.severity === 'critical' ? 'error' : alert.severity === 'high' ? 'warning' : 'info'} size="small" />
+                      </Box>
+                      <Typography variant="body2" color="textSecondary">{alert.message}</Typography>
+                    </Box>
+                  ))}
+              </Box>
             </CardContent>
           </Card>
         </Grid>
@@ -379,7 +542,7 @@ const Dashboard: React.FC = () => {
       {overview?.data.last_updated && (
         <Box mt={3} textAlign="center">
           <Typography variant="caption" color="textSecondary">
-            Last updated: {format(new Date(overview.data.last_updated), 'MMM dd, yyyy HH:mm:ss')}
+            {t('last_updated')}: {format(new Date(overview.data.last_updated), 'MMM dd, yyyy HH:mm:ss')}
           </Typography>
         </Box>
       )}

@@ -1,34 +1,33 @@
-FROM node:18-alpine
+# syntax=docker/dockerfile:1
 
+# --- Build stage ---
+FROM node:18-alpine AS build
 WORKDIR /app
 
-# Copy package files
+# Install deps
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
+# Build
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# --- Runtime stage ---
+FROM nginx:1.25-alpine
 
-# Copy built assets from build stage
-COPY --from=0 /app/build /usr/share/nginx/html
+# Copy built assets
+COPY --from=build /app/build /usr/share/nginx/html
 
-# Copy nginx configuration
+# Nginx config with caching and SPA fallback
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port
-EXPOSE 3000
+# Non-root best practice
+RUN addgroup -S app && adduser -S app -G app \
+  && chown -R app:app /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html
+USER app
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+EXPOSE 80
 
-# Start nginx
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 CMD wget -qO- http://localhost/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]
